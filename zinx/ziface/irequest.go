@@ -5,7 +5,7 @@ package ziface
  实际上市把客户端请求的链接信息，和请求的数据 包装到了一个Request中
 */
 
-type IRequset interface {
+type IRequest interface {
 
 	//得到当前链接
 	GetConnection() IConnection

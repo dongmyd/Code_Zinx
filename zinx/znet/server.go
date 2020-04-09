@@ -1,7 +1,6 @@
 package znet
 
 import (
-	"errors"
 	"fmt"
 	"github.com/dongmyd/Code_Zinx/zinx/ziface"
 	"net"
@@ -17,52 +16,43 @@ type Server struct {
 	IP string
 	//服务器监听的端口
 	Port int
-}
-
-//当前客户端链接的所绑定的handle api(，目前这个handle是写死的，以后优化应该由用户自定义handle方法)
-func CallBackToClient(conn *net.TCPConn,data []byte, cnt int) error{
-	//回显的业务
-	fmt.Println("[Conn Handle] CallbackToClient ... ")
-	if _, err := conn.Write(data[:cnt]); err!=nil{
-		fmt.Println("write back buf err",err)
-		return  errors.New("CallBackToClient error")
-	}
-	return nil
+	//当前的Server添加一个router，server注册的链接对应的处理业务
+	Router ziface.IRouter
 }
 
 //启动服务器
 func (s *Server) Start() {
-	fmt.Printf("[Start] Server Listener at IP :%s, Prot %d, is starting\n",s.IP,s.Port)
+	fmt.Printf("[Start] Server Listener at IP :%s, Prot %d, is starting\n", s.IP, s.Port)
 
 	go func() {
 		//1 获取一个TCP的Addr
-		addr,err:= net.ResolveTCPAddr(s.IPVersion,fmt.Sprintf("%s:%d",s.IP,s.Port))
-		if err!=nil{
+		addr, err := net.ResolveTCPAddr(s.IPVersion, fmt.Sprintf("%s:%d", s.IP, s.Port))
+		if err != nil {
 			fmt.Println("resplve tcp addr error : ", err)
 			return
 		}
 
 		//2 监听服务器的地址
-		listenner,err :=net.ListenTCP(s.IPVersion,addr)
-		if err!= nil{
-			fmt.Println("listen",s.IPVersion," err",err)
+		listenner, err := net.ListenTCP(s.IPVersion, addr)
+		if err != nil {
+			fmt.Println("listen", s.IPVersion, " err", err)
 			return
 		}
-		fmt.Println("start Zinx server succ",s.Name," succ,Listenning...")
+		fmt.Println("start Zinx server succ", s.Name, " succ,Listenning...")
 		var cid uint32
 		cid = 0
 
 		//3 阻塞的等待客户端链接，处理客户端链接业务（读写）
-		for{
+		for {
 			//如果有客户端连接过来，阻塞会返回
-			conn,err := listenner.AcceptTCP()
-			if err!= nil{
-				fmt.Println("Accept err",err)
+			conn, err := listenner.AcceptTCP()
+			if err != nil {
+				fmt.Println("Accept err", err)
 				continue
 			}
 
 			//将处理新连接的业务方法和 conn 进行绑定 得到我们的链接模块
-			dealConn := NewConnection(conn,cid,CallBackToClient)
+			dealConn := NewConnection(conn, cid, s.Router)
 			cid++
 
 			//启动当前的链接业务处理
@@ -71,10 +61,12 @@ func (s *Server) Start() {
 	}()
 
 }
+
 //停止服务器
 func (s *Server) Stop() {
 	//TODO 将一些服务器的资源，状态或者一些已经开辟的链接信息 进行停止或者回收
 }
+
 //运行服务器
 func (s *Server) Server() {
 	//启动server的服务功能
@@ -83,9 +75,12 @@ func (s *Server) Server() {
 	//TODO 做一些启动服务器之后的额外业务
 
 	//阻塞状态
-	select {
+	select {}
+}
 
-	}
+func (s *Server) AddRouter(router ziface.IRouter) {
+	s.Router = router
+	fmt.Println("Add Router Succ!!")
 }
 
 /*
@@ -94,10 +89,11 @@ func (s *Server) Server() {
 
 func NewServer(name string) ziface.IServer {
 	s := &Server{
-		Name:      "name",
+		Name:      name,
 		IPVersion: "tcp4",
 		IP:        "0.0.0.0",
 		Port:      8999,
+		Router:    nil,
 	}
 	return s
 }
