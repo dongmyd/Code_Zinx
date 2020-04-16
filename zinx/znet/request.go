@@ -7,7 +7,7 @@ type Requset struct {
 	conn ziface.IConnection
 
 	//客户端请求的数据
-	data []byte
+	msg ziface.IMessage
 }
 
 func (r *Requset) GetConnection() ziface.IConnection {
@@ -15,5 +15,9 @@ func (r *Requset) GetConnection() ziface.IConnection {
 }
 
 func (r *Requset) GetData() []byte {
-	return r.data
+	return r.msg.GetData()
+}
+
+func (r *Requset) GetMsgID() uint32 {
+	return r.msg.GetMsgId()
 }

@@ -11,7 +11,7 @@ type IConnection interface {
 	Stop()
 
 	//获取当前链接的绑定socket conn
-	GetTCPCOnnection() *net.TCPConn
+	GetTCPConnection() *net.TCPConn
 
 	//获取当前链接模块的链接ID
 	GetConnID() uint32
@@ -20,7 +20,7 @@ type IConnection interface {
 	RemoteAddr() net.Addr
 
 	//发送数据，将数据发送给远程的客户端
-	Send(data []byte) error
+	SendMsg(msgId uint32, data []byte) error
 }
 
 //定义一个出来链接业务的方法
