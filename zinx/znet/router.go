@@ -2,7 +2,7 @@ package znet
 
 import "github.com/dongmyd/Code_Zinx/zinx/ziface"
 
-//实现router时，先嵌入BaseRouter积累，然后根据需要对这个基类的方法进行重写就好
+//实现router时，先嵌入BaseRouter基类，然后根据需要对这个基类的方法进行重写就好
 type BaseRouter struct {
 }
 
