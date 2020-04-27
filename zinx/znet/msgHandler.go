@@ -2,6 +2,7 @@ package znet
 
 import (
 	"fmt"
+	"github.com/dongmyd/Code_Zinx/zinx/utils"
 	"github.com/dongmyd/Code_Zinx/zinx/ziface"
 	"strconv"
 )
@@ -13,12 +14,18 @@ import (
 type MsgHandle struct {
 	//存放每个MsgID 所对应
 	Apis map[uint32]ziface.IRouter
+	//负责Worker读取任务的消息队列
+	TaskQueue []chan ziface.IRequest
+	//业务工作Worker池的worker数量
+	WorkerPoolSize uint32
 }
 
 //初始化/创建MsgHandle方法
 func NewMsgHandle() *MsgHandle {
 	return &MsgHandle{
-		Apis: make(map[uint32]ziface.IRouter),
+		Apis:           make(map[uint32]ziface.IRouter),
+		WorkerPoolSize: utils.GlobalObject.WorkerPoolSize, //从全局配置中获取
+		TaskQueue:      make([]chan ziface.IRequest, utils.GlobalObject.WorkerPoolSize),
 	}
 }
 
@@ -46,4 +53,43 @@ func (mh *MsgHandle) AddRouter(msgID uint32, router ziface.IRouter) {
 	//2 添加msg与API的绑定关系
 	mh.Apis[msgID] = router
 	fmt.Println("Add api MsgID = ", msgID, " succ!")
+}
+
+//启动一个Worker工作池(开启工作池的动作只能发生一次，一个zinx框架只能有一个worker工作池)
+func (mh *MsgHandle) StartWorkerPool() {
+	//根据wokerPoolSize 分别开启Worker，每个Worker用一个go来承载
+	for i := 0; i < int(mh.WorkerPoolSize); i++ {
+		//一个worker被启动
+		//1 当前的worker对应的channel消息队列 开辟空间 第0个worker 就用第0个channel ...
+		mh.TaskQueue[i] = make(chan ziface.IRequest, utils.GlobalObject.MaxWorkerTaskLen)
+		//2 启动当前的Worker, 阻塞等待消息从channel传递进来
+		go mh.StartOneWorker(i, mh.TaskQueue[i])
+	}
+}
+
+//启动一个Worker工作流程
+func (mh *MsgHandle) StartOneWorker(workerID int, taskQueue chan ziface.IRequest) {
+	fmt.Println("Worker ID = ", workerID, " is started ...")
+
+	//不断阻塞等待对应消息队列的消息
+	for {
+		select {
+		//如果有消息过来，出列的就是一个客户端的Request，执行当前Request，执行当前Request所绑定业务
+		case requset := <-taskQueue:
+			mh.DoMsgHandler(requset)
+		}
+	}
+}
+
+//将消息交给TaskQueue，由Worker进行处理
+func (mh *MsgHandle) SendMsgToTaskQueue(requset ziface.IRequest) {
+	//1 将消息平均分配给不同的worker
+	//根据客户端建立的ConnID来进行分配
+	workerID := requset.GetConnection().GetConnID() % mh.WorkerPoolSize
+	fmt.Println("Add ConnID = ", requset.GetConnection().GetConnID(),
+		" request MsgID = ", requset.GetMsgID(),
+		" to workID = ", workerID)
+
+	//2 将消息发送给对应的worker的TaskQueue即可
+	mh.TaskQueue[workerID] <- requset
 }
