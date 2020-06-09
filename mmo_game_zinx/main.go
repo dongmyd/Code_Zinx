@@ -61,3 +61,7 @@ func main() {
 	//启动服务
 	s.Server()
 }
+
+func  test()  {
+	fmt.Println("1111")
+}
